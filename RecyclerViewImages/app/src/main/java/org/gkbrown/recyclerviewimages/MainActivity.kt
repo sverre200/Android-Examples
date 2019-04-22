@@ -35,29 +35,33 @@ import java.net.URL
 
 class BackgroundTask<A: Activity, R>(activity: A,
     private val task: () -> R,
-    private val resultHandler: (activity: A?, result: R?, exception: Exception?) -> Unit
+    private val resultHandler: (activity: A?, result: Result<R>) -> Unit
 ) : AsyncTask<Unit, Unit, R?>() {
     private val activityReference = WeakReference<A>(activity)
 
-    private var result: R? = null
+    private var value: R? = null
     private var exception: Exception? = null
 
     override fun doInBackground(vararg params: Unit?): R? {
         try {
-            result = task()
+            value = task()
         } catch (exception: Exception) {
             this.exception = exception
         }
 
-        return result
+        return value
     }
 
-    override fun onPostExecute(result: R?) {
-        resultHandler(activityReference.get(), result, exception)
+    override fun onPostExecute(value: R?) {
+        resultHandler(activityReference.get(), if (exception == null) {
+            Result.success(value!!)
+        } else {
+            Result.failure(exception!!)
+        })
     }
 }
 
-fun <A: Activity, R> A.doInBackground(task: () -> R, resultHandler: (activity: A?, result: R?, exception: Exception?) -> Unit) {
+fun <A: Activity, R> A.doInBackground(task: () -> R, resultHandler: (activity: A?, result: Result<R>) -> Unit) {
     BackgroundTask(this, task, resultHandler).execute()
 }
 
@@ -95,14 +99,14 @@ class MainActivity : AppCompatActivity() {
                     val webServiceProxy = WebServiceProxy("GET", photo.thumbnailUrl)
 
                     webServiceProxy.invoke { inputStream, _ -> BitmapFactory.decodeStream(inputStream) }
-                }) { activity, result, _ ->
+                }) { activity, result ->
                     // Add image to cache and update view holder, if visible
-                    if (result != null) {
-                        photoThumbnails[photo.id] = result
+                    result.onSuccess { value ->
+                        photoThumbnails[photo.id] = value
 
                         val viewHolder = activity?.recyclerView?.findViewHolderForAdapterPosition(position) as? PhotoViewHolder
 
-                        viewHolder?.imageView?.setImageBitmap(result)
+                        viewHolder?.imageView?.setImageBitmap(value)
                     }
                 }
             }
@@ -141,12 +145,12 @@ class MainActivity : AppCompatActivity() {
                 val photos = webServiceProxy.invoke { inputStream, _ -> ObjectMapper().readValue(inputStream, List::class.java) }
 
                 photos.map { @Suppress("UNCHECKED_CAST") Photo(it as Map<String, Any>) }
-            }) { activity, result, exception ->
-                if (exception == null) {
-                    photos = result
+            }) { activity, result ->
+                result.onSuccess { value ->
+                    photos = value
 
                     activity?.recyclerView?.adapter?.notifyDataSetChanged()
-                } else {
+                }.onFailure { exception ->
                     println(exception.message)
                 }
             }
