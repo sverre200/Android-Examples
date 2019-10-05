@@ -29,7 +29,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.android.synthetic.main.activity_main.*
-import org.gkbrown.kilo.WebServiceProxy
+import org.httprpc.WebServiceProxy
 import java.lang.ref.WeakReference
 import java.net.URL
 
@@ -98,7 +98,7 @@ class MainActivity : AppCompatActivity() {
                 doInBackground({
                     val webServiceProxy = WebServiceProxy("GET", photo.thumbnailUrl)
 
-                    webServiceProxy.invoke { inputStream, _ -> BitmapFactory.decodeStream(inputStream) }
+                    webServiceProxy.invoke { inputStream, _, _ -> BitmapFactory.decodeStream(inputStream) }
                 }) { activity, result ->
                     // Add image to cache and update view holder, if visible
                     result.onSuccess { value ->
@@ -142,7 +142,7 @@ class MainActivity : AppCompatActivity() {
             doInBackground({
                 val webServiceProxy = WebServiceProxy("GET", URL("https://jsonplaceholder.typicode.com/photos"))
 
-                val photos = webServiceProxy.invoke { inputStream, _ -> ObjectMapper().readValue(inputStream, List::class.java) }
+                val photos = webServiceProxy.invoke { inputStream, _, _ -> ObjectMapper().readValue(inputStream, List::class.java) }
 
                 photos.map { @Suppress("UNCHECKED_CAST") Photo(it as Map<String, Any>) }
             }) { activity, result ->
