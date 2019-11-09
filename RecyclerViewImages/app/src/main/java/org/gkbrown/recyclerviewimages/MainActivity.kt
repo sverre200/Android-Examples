@@ -27,7 +27,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.android.synthetic.main.activity_main.*
 import org.httprpc.WebServiceProxy
 import java.lang.ref.WeakReference
@@ -68,7 +67,7 @@ fun <A: Activity, R> A.doInBackground(task: () -> R, resultHandler: (activity: A
 class MainActivity : AppCompatActivity() {
     // Photo class
     class Photo (map: Map<String, Any>) {
-        val id = map["id"] as Int
+        val id = map["id"] as Long
         val title = map["title"] as String
         val thumbnailUrl = URL(map["thumbnailUrl"] as String)
     }
@@ -123,7 +122,7 @@ class MainActivity : AppCompatActivity() {
     var photos: List<Photo>? = null
 
     // Thumbnail cache
-    val photoThumbnails = HashMap<Int, Bitmap>()
+    val photoThumbnails = HashMap<Long, Bitmap>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -142,12 +141,10 @@ class MainActivity : AppCompatActivity() {
             doInBackground({
                 val webServiceProxy = WebServiceProxy("GET", URL("https://jsonplaceholder.typicode.com/photos"))
 
-                val photos = webServiceProxy.invoke { inputStream, _, _ -> ObjectMapper().readValue(inputStream, List::class.java) }
-
-                photos.map { @Suppress("UNCHECKED_CAST") Photo(it as Map<String, Any>) }
+                webServiceProxy.invoke() as List<Map<String, Any>>
             }) { activity, result ->
                 result.onSuccess { value ->
-                    photos = value
+                    photos = value.map { Photo(it) }
 
                     activity?.recyclerView?.adapter?.notifyDataSetChanged()
                 }.onFailure { exception ->
